@@ -67,14 +67,20 @@ import java.util.Locale
 @Composable
 fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = hiltViewModel()) {
 
+    val currentExpense by viewModel.currentExpense.observeAsState(EntityUi())
+    val sum by viewModel.totalSum.observeAsState(0.0)
+    val addScreenState by viewModel.addScreen.observeAsState(false)
+    val currentCategory by viewModel.currentCategory.observeAsState("All")
+    val filteredExpenses by viewModel.filteredExpenses.observeAsState(emptyList())
+    val categories by viewModel.categories.observeAsState(emptyList())
 
     SuccessScreen(modifier = modifier,
-        currentExpense = viewModel.currentExpense.observeAsState().value ?: EntityUi(),
-        sum = viewModel.totalSum.observeAsState().value ?: 0.0,
-        addScreenState = viewModel.addScreen.observeAsState().value ?: false,
-        currentCategory = viewModel.currentCategory.observeAsState().value ?: "All",
-        list = viewModel.filteredExpenses.observeAsState().value ?: emptyList(),
-        listCategories = viewModel.categories.observeAsState().value ?: emptyList(),
+        currentExpense = currentExpense,
+        sum = sum ?: 0.0,
+        addScreenState = addScreenState,
+        currentCategory = currentCategory,
+        list = filteredExpenses,
+        listCategories = categories,
         onAddClick = {
             viewModel.addExpense(it)
             viewModel.addCurrentExpense(EntityUi(0, 0.0, "", "", 0))
@@ -361,8 +367,8 @@ fun CustomKeyBoard(
             unfocusedIndicatorColor = Color.Transparent,
             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White
+            focusedTextColor = Color.Black,
+            unfocusedTextColor = Color.Black
         )
     )
 }
