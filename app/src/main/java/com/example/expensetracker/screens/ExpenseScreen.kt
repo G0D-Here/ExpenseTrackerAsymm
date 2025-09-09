@@ -46,7 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +69,7 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
 
 
     SuccessScreen(modifier = modifier,
-        currentExpense = viewModel.currentExpense.observeAsState().value?: EntityUi(),
+        currentExpense = viewModel.currentExpense.observeAsState().value ?: EntityUi(),
         sum = viewModel.totalSum.observeAsState().value ?: 0.0,
         addScreenState = viewModel.addScreen.observeAsState().value ?: false,
         currentCategory = viewModel.currentCategory.observeAsState().value ?: "All",
@@ -252,9 +252,9 @@ fun ExpenseAddScreen(
     val context = LocalContext.current
 
 
-    var amount by remember { mutableStateOf("${expense.amount}") }
-    var category by remember { mutableStateOf(expense.category) }
-    var description by remember { mutableStateOf(expense.description) }
+    var amount by rememberSaveable { mutableStateOf("${expense.amount}") }
+    var category by rememberSaveable { mutableStateOf(expense.category) }
+    var description by rememberSaveable { mutableStateOf(expense.description) }
     Box(
         Modifier,
     ) {
