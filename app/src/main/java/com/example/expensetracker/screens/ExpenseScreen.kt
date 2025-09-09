@@ -180,7 +180,7 @@ fun SuccessScreen(
 
             if (list.isEmpty()) {
                 Text(
-                    "Save your first Expense",
+                    "Save your first Expense here",
                     Modifier.align(Alignment.CenterHorizontally),
                     color = Color.Black
                 )
