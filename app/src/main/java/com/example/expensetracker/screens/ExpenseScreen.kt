@@ -68,7 +68,7 @@ import java.util.Locale
 fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = hiltViewModel()) {
 
     val currentExpense by viewModel.currentExpense.observeAsState(EntityUi())
-    val sum by viewModel.totalSum.observeAsState(0.0)
+    val sum by viewModel.totalSum.observeAsState(0)
     val addScreenState by viewModel.addScreen.observeAsState(false)
     val currentCategory by viewModel.currentCategory.observeAsState("All")
     val filteredExpenses by viewModel.filteredExpenses.observeAsState(emptyList())
@@ -76,14 +76,14 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
 
     SuccessScreen(modifier = modifier,
         currentExpense = currentExpense,
-        sum = sum ?: 0.0,
+        sum = sum ?: 0,
         addScreenState = addScreenState,
         currentCategory = currentCategory,
         list = filteredExpenses,
         listCategories = categories,
         onAddClick = {
             viewModel.addExpense(it)
-            viewModel.addCurrentExpense(EntityUi(0, 0.0, "", "", 0))
+            viewModel.addCurrentExpense(EntityUi(0, 0, "", "", 0))
         },
         onDeletePress = { expense ->
             viewModel.deleteExpense(expense)
@@ -103,7 +103,7 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
 fun SuccessScreen(
     modifier: Modifier,
     currentExpense: EntityUi,
-    sum: Double,
+    sum: Int,
     addScreenState: Boolean,
     currentCategory: String,
     list: List<EntityUi>,
@@ -252,7 +252,7 @@ fun SuccessScreen(
 
 @Composable
 fun ExpenseAddScreen(
-    expense: EntityUi = EntityUi(0, 0.0, "", "", 0),
+    expense: EntityUi = EntityUi(0, 0, "", "", 0),
     onAddClick: (ExpenseEntity) -> Unit, onUpdateClick: (expense: ExpenseEntity) -> Unit
 ) {
     val context = LocalContext.current
@@ -285,7 +285,7 @@ fun ExpenseAddScreen(
             )
 
             CustomKeyBoard(
-                if (amount == 0.0.toString()) "" else amount,
+                if (amount == 0.toString()) "" else amount,
                 placeHolder = "enter amount",
                 keyboardType = KeyboardType.Number
             ) {
@@ -309,22 +309,22 @@ fun ExpenseAddScreen(
             Button(
                 onClick = {
                     if (
-                        expense.id != 0 && amount.isNotEmpty() && amount.toDouble() > 0.0 && category.isNotEmpty() && description.isNotEmpty()
+                        expense.id != 0 && amount.isNotEmpty() && amount.toInt() > 0 && category.isNotEmpty() && description.isNotEmpty()
                     ) onUpdateClick(
                         ExpenseEntity(
                             uid = expense.id,
-                            amount = amount.toDouble(),
+                            amount = amount.toInt(),
                             category = category.lowercase(Locale.ROOT).trim(),
                             description = description,
                             date = System.currentTimeMillis()
                         )
                     )
                     else if (
-                        expense.id == 0 && amount.isNotEmpty() && amount.toDouble() > 0.0 && category.isNotEmpty() && description.isNotEmpty())
+                        expense.id == 0 && amount.isNotEmpty() && amount.toInt() > 0 && category.isNotEmpty() && description.isNotEmpty())
                         onAddClick(
                             ExpenseEntity(
                                 uid = 0,
-                                amount = amount.toDouble(),
+                                amount = amount.toInt(),
                                 category = category.lowercase(Locale.ROOT).trim(),
                                 description = description,
                                 date = System.currentTimeMillis()

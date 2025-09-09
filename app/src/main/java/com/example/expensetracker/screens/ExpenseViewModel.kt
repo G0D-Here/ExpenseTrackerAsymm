@@ -22,11 +22,11 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
 
     val currentCategory = MutableLiveData("All")
 
-    private val _totalSum: LiveData<Double?> = currentCategory.switchMap { category ->
+    private val _totalSum: LiveData<Int?> = currentCategory.switchMap { category ->
         if (category == "All") repository.getTotalAmount()
         else repository.getTotalForCategory(category)
     }
-    val totalSum: LiveData<Double?> = _totalSum
+    val totalSum: LiveData<Int?> = _totalSum
 
     val categories: LiveData<List<String>> = repository.getAllCategories()
 

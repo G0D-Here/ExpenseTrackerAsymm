@@ -20,7 +20,7 @@ interface ExpenseDao {
     suspend fun updateExpense(expense: ExpenseEntity)
 
     @Query("SELECT SUM(amount) FROM expenses")
-    fun getTotalAmount(): LiveData<Double?>
+    fun getTotalAmount(): LiveData<Int?>
 
     @Query("SELECT * FROM expenses WHERE category = :category")
     fun allExpensesOfCategory(category: String): LiveData<List<ExpenseEntity>>
@@ -29,7 +29,7 @@ interface ExpenseDao {
     fun getAllCategories(): LiveData<List<String>>
 
     @Query("SELECT SUM(amount) FROM expenses WHERE category = :category")
-    fun getTotalExpenseForCategory(category: String): LiveData<Double?>
+    fun getTotalExpenseForCategory(category: String): LiveData<Int?>
 
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     fun getAllExpenses(): LiveData<List<ExpenseEntity>>

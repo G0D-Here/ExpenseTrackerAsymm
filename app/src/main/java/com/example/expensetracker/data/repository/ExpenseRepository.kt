@@ -17,14 +17,14 @@ class ExpenseRepository @Inject constructor(
     suspend fun updateExpense(expenseEntity: ExpenseEntity) =
         expenseDao.updateExpense(expenseEntity)
 
-    fun getTotalAmount():LiveData<Double?> = expenseDao.getTotalAmount()
+    fun getTotalAmount():LiveData<Int?> = expenseDao.getTotalAmount()
 
     fun allExpensesOfCategory(category: String): LiveData<List<ExpenseEntity>> =
         expenseDao.allExpensesOfCategory(category)
 
     fun getAllCategories(): LiveData<List<String>> = expenseDao.getAllCategories()
 
-    fun getTotalForCategory(category: String): LiveData<Double?> =
+    fun getTotalForCategory(category: String): LiveData<Int?> =
         expenseDao.getTotalExpenseForCategory(category)
 
     fun getAllExpenses(): LiveData<List<ExpenseEntity>> = expenseDao.getAllExpenses()
