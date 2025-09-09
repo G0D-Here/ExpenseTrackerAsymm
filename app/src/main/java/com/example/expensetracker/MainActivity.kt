@@ -3,14 +3,10 @@ package com.example.expensetracker
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.expensetracker.screens.ExpenseScreen
 import com.example.expensetracker.screens.ExpenseViewModel
@@ -23,7 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
         setContent {
-            ExpenseTrackerTheme {
+            ExpenseTrackerTheme(darkTheme = false) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val viewmodel: ExpenseViewModel = hiltViewModel()
                     ExpenseScreen(Modifier.padding(innerPadding), viewmodel)
