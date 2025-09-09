@@ -7,7 +7,6 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ExpenseDao {
@@ -19,31 +18,15 @@ interface ExpenseDao {
 
     @Update
     suspend fun updateExpense(expense: ExpenseEntity)
-//
-//    @Query("SELECT SUM(amount) FROM expenses")
-//    fun getTotalAmount():Flow<Double?>
-//
-//    @Query("SELECT * FROM expenses WHERE category = :category")
-//    fun allExpensesOfCategory(category: String): Flow<List<ExpenseEntity>>
-//
-//    @Query("SELECT DISTINCT category FROM expenses")
-//    fun getAllCategories():Flow<List<String>>
-//
-//    @Query("SELECT SUM(amount) FROM expenses WHERE category = :category")
-//    fun getTotalExpenseForCategory(category: String): Flow<Double?>
-//
-//    @Query("SELECT * FROM expenses ORDER BY date DESC")
-//    fun getAllExpenses(): Flow<List<ExpenseEntity>>
-
 
     @Query("SELECT SUM(amount) FROM expenses")
-    fun getTotalAmount():LiveData<Double?>
+    fun getTotalAmount(): LiveData<Double?>
 
     @Query("SELECT * FROM expenses WHERE category = :category")
     fun allExpensesOfCategory(category: String): LiveData<List<ExpenseEntity>>
 
     @Query("SELECT DISTINCT category FROM expenses")
-    fun getAllCategories():LiveData<List<String>>
+    fun getAllCategories(): LiveData<List<String>>
 
     @Query("SELECT SUM(amount) FROM expenses WHERE category = :category")
     fun getTotalExpenseForCategory(category: String): LiveData<Double?>
