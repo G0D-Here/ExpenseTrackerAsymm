@@ -1,8 +1,8 @@
 package com.example.expensetracker.data.repository
 
-import androidx.lifecycle.LiveData
 import com.example.expensetracker.data.local.ExpenseDao
 import com.example.expensetracker.data.local.ExpenseEntity
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class ExpenseRepository @Inject constructor(
@@ -17,15 +17,18 @@ class ExpenseRepository @Inject constructor(
     suspend fun updateExpense(expenseEntity: ExpenseEntity) =
         expenseDao.updateExpense(expenseEntity)
 
-    fun getTotalAmount():LiveData<Int?> = expenseDao.getTotalAmount()
+    fun getTotalAmount(): Flow<Int?> = expenseDao.getTotalAmount()
 
-    fun allExpensesOfCategory(category: String): LiveData<List<ExpenseEntity>> =
+    fun getExpensesInDateRanges(startDate: Long, endDate: Long): Flow<List<ExpenseEntity>> =
+        expenseDao.getExpensesInDateRanges(startDate, endDate)
+
+    fun allExpensesOfCategory(category: String): Flow<List<ExpenseEntity>> =
         expenseDao.allExpensesOfCategory(category)
 
-    fun getAllCategories(): LiveData<List<String>> = expenseDao.getAllCategories()
+    fun getAllCategories(): Flow<List<String>> = expenseDao.getAllCategories()
 
-    fun getTotalForCategory(category: String): LiveData<Int?> =
+    fun getTotalForCategory(category: String): Flow<Int?> =
         expenseDao.getTotalExpenseForCategory(category)
 
-    fun getAllExpenses(): LiveData<List<ExpenseEntity>> = expenseDao.getAllExpenses()
+    fun getAllExpenses(): Flow<List<ExpenseEntity>> = expenseDao.getAllExpenses()
 }
