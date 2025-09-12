@@ -2,7 +2,6 @@
 
 package com.example.expensetracker.screens
 
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -26,6 +26,12 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed class DBState {
+    data class Failure(val error: String) : DBState()
+    data class Success(val data: String) : DBState()
+    data object Loading : DBState()
+}
 
 @HiltViewModel
 class ExpenseViewModel @Inject constructor(private val repository: ExpenseRepository) :
@@ -39,11 +45,11 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     //remove the CKeyboard use system keyboard TF.[Done]
     //instead of ExpenseAddScreen use bottom pop up for that like alert dialog.[Done]
     //keep Logic utils within the screen only.[Done]
-    //add drop down to select one category.
+    //add drop down to select one category.[Done]
 
 
     private var _currentCategory = MutableStateFlow("All")
-    val currentCategory: Flow<String> = _currentCategory
+    val currentCategory: StateFlow<String> = _currentCategory.asStateFlow()
 
 
     private val _totalSum: Flow<Int?> = currentCategory.flatMapLatest {
@@ -63,19 +69,30 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
 
     var currentExpense = mutableStateOf(EntityUi())
         private set
-//    val currentExpense: State<EntityUi> = _currentExpense
 
-    val ranges = MutableStateFlow(Pair(System.currentTimeMillis(), System.currentTimeMillis()))
 
     //refreshState: Pending until nextPhase
     private val refreshState: MutableStateFlow<Unit> = MutableStateFlow(Unit)
 
+    private val _numberOfExpensesPerCategory = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    val numberOfExpensesPerCategory: StateFlow<Map<String, Int>> =
+        _numberOfExpensesPerCategory.asStateFlow()
+
+
+    val ranges = MutableStateFlow(Pair(System.currentTimeMillis(), System.currentTimeMillis()))
+
+
     private val _query = MutableStateFlow("")
 
-    val uiState: Flow<DataState> = refreshState
+    private val _dataBaseOperationsState: MutableStateFlow<DBState> =
+        MutableStateFlow(DBState.Success(""))
+    val dataBaseOperationsState: StateFlow<DBState> = _dataBaseOperationsState.asStateFlow()
+
+    val uiState: StateFlow<DataState> = refreshState
         .combine(currentCategory) { _, category -> category }
         .combine(ranges) { category, range -> category to range }
-        .combine(this._query) { (category, range), query -> Triple(category, range, query) }
+        .combine(_query) { (category, range), query -> Triple(category, range, query) }
         .flatMapLatest { (category, range, query) ->
             val flow = when (category) {
                 "All" -> repository.getAllExpenses()
@@ -99,14 +116,19 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
         .stateIn(viewModelScope, SharingStarted.Lazily, DataState.Loading)
 
 
+    fun numberOfExpensesPerCategory() {
+        viewModelScope.launch {
+            repository.getAllExpenses().collect { it ->
+                _numberOfExpensesPerCategory.value =
+                    it.groupBy { it.category }
+                        .mapValues { (_, list) -> list.size }
+            }
+
+        }
+    }
+
     fun onSearchQueryChanged(query: String) {
         _query.value = query
-        Log.d("SearchFunctionality", "Query: $query")
-        viewModelScope.launch {
-            uiState.collect {
-                Log.d("SearchFunctionality", "State: $it")
-            }
-        }
 
     }
 
@@ -121,40 +143,53 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
         startDate: Long, endDate: Long
     ) {
         viewModelScope.launch {
-//            if (category == "All")_query.value = ""
             ranges.value = Pair(startDate, endDate)
             _currentCategory.value = category
-
-            Log.d(
-                "ViewModelErrors",
-                "Range: $category Start: ${startDate.toDateTimeString()} End: ${endDate.toDateTimeString()}\n\n"
-            )
-
-
         }
 
     }
 
     fun addExpense(expenseEntity: ExpenseEntity) {
+        _dataBaseOperationsState.value = DBState.Loading
         viewModelScope.launch {
-            repository.insertExpense(expenseEntity)
-            currentExpense.value = EntityUi()
-
+            try {
+                repository.insertExpense(expenseEntity)
+                currentExpense.value = EntityUi()
+                _dataBaseOperationsState.value = DBState.Success("Added")
+            } catch (e: Exception) {
+                _dataBaseOperationsState.value =
+                    DBState.Failure(e.message ?: "SomeThing Went Wrong")
+            }
         }
     }
 
     fun deleteExpense(expenseEntity: ExpenseEntity) {
         viewModelScope.launch {
-            repository.deleteExpense(expenseEntity)
+            _dataBaseOperationsState.value = DBState.Loading
+            try {
+                repository.deleteExpense(expenseEntity)
+                _dataBaseOperationsState.value = DBState.Success("Deleted")
+            } catch (e: Exception) {
+                _dataBaseOperationsState.value =
+                    DBState.Failure(e.message ?: "SomeThing Went Wrong")
+            }
         }
     }
 
     fun updateExpense(expense: ExpenseEntity) {
+        _dataBaseOperationsState.value = DBState.Loading
         viewModelScope.launch {
-            repository.updateExpense(expense)
-            currentExpense.value = EntityUi()
+            try {
+                repository.updateExpense(expense)
+                currentExpense.value = EntityUi()
+                _dataBaseOperationsState.value = DBState.Success("Updated")
+            } catch (
+                e: Exception
+            ) {
+                _dataBaseOperationsState.value =
+                    DBState.Failure(e.message ?: "SomeThing Went Wrong")
+            }
         }
     }
-
 
 }

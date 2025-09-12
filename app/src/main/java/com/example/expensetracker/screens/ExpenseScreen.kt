@@ -1,5 +1,6 @@
 package com.example.expensetracker.screens
 
+import android.graphics.Paint
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -27,6 +30,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -35,6 +40,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -66,16 +73,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.expensetracker.data.local.ExpenseEntity
 import com.example.expensetracker.utils.states.DataState
 import com.example.expensetracker.utils.states.EntityUi
@@ -85,15 +92,27 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class Data(val name: String, val age: Int)
+//val listOfBarChartExamples = listOf(
+//    mapOf("Vivek" to 25),
+//    mapOf("Mohan" to 30),
+//    mapOf("Virat" to 45),
+//    mapOf("Rohan" to 38),
+//    mapOf("Virat" to 40),
+//    mapOf("Shyam" to 65),
+//    mapOf("Viram" to 20),
+//    mapOf("Highest" to 30)
+//)
 
 @Composable
 fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = hiltViewModel()) {
 
+    val dbState = viewModel.dataBaseOperationsState.collectAsStateWithLifecycle().value
+
+    val numberOfExpensesPerCategory by viewModel.numberOfExpensesPerCategory.collectAsState()
     val currentExpense by viewModel.currentExpense
     val sum by viewModel.totalSum.collectAsState(0)
-    val currentCategory by viewModel.currentCategory.collectAsState("All")
-    val filteredExpenses = viewModel.uiState.collectAsState(emptyList<DataState.Loading>()).value
+    val currentCategory by viewModel.currentCategory.collectAsState()
+    val filteredExpenses = viewModel.uiState.collectAsState().value
     val categories by viewModel.categories.collectAsState(emptyList())
 
     when (filteredExpenses) {
@@ -110,7 +129,9 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
 
         is DataState.Success -> {
             SuccessScreen(modifier = modifier,
+                dbState = dbState,
                 currentExpense = currentExpense,
+                numberOfExpensesPerCategory = numberOfExpensesPerCategory,
                 sum = sum ?: 0,
                 currentCategory = currentCategory,
                 list = filteredExpenses.data,
@@ -128,6 +149,7 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
                 rangeSet = viewModel.ranges.collectAsState().value,
                 resetCurrentExpense = { viewModel.addCurrentExpense(EntityUi()) },
                 onSearch = { viewModel.onSearchQueryChanged(it) },
+                onCharButtonClick = { viewModel.numberOfExpensesPerCategory() },
                 onUpdateClick = {
                     viewModel.updateExpense(it)
                 }
@@ -137,98 +159,102 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
 
 }
 
-//Only for Learning
+
 @Composable
-fun BarChart(
-    data: List<Data>,
-    modifier: Modifier = Modifier,
-    barColor: Color = Color(0xFF0075D2),
-    textColor: Color = Color.Black,
-    axisColor: Color = Color.Gray
-) {
-    val textMeasurer = rememberTextMeasurer()
-    val maxValue = data.maxOf { it.age }.toFloat()
-    val padding = 40f
-
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(400.dp)
+fun MyBarChart(modifier: Modifier = Modifier, list: Map<String, Int>) {
+    Box(
+        modifier
+            .clip(RoundedCornerShape(20.dp))
+            .wrapContentSize()
+            .background(Color.White),
+        contentAlignment = Alignment.Center
     ) {
-        val canvasWidth = size.width - padding * 2
-        val canvasHeight = size.height - padding * 2
-        val barWidth = (canvasWidth / data.size) * 0.7f
-        val barSpacing = (canvasWidth / data.size) * 0.3f
 
-        drawLine(
-            color = axisColor,
-            start = Offset(padding, 0f),
-            end = Offset(padding, size.height - padding),
-            strokeWidth = 2f
-        )
+        Canvas(
+            modifier
+                .height(400.dp)
+                .fillMaxWidth()
+        ) {
 
-        drawLine(
-            color = axisColor,
-            start = Offset(padding, size.height - padding),
-            end = Offset(size.width, size.height - padding),
-            strokeWidth = 2f
-        )
-
-        val yStep = maxValue / 5
-        for (i in 0..5) {
-            val value = i * yStep
-            val yPos = size.height - padding - (value / maxValue * canvasHeight)
-
-            drawText(
-                textMeasurer = textMeasurer,
-                text = value.toInt().toString(),
-                style = TextStyle(color = textColor, fontSize = 12.sp),
-                topLeft = Offset(0f, yPos - 8f)
-            )
+            val padding = 80f
+            val canvasWidth = size.width
+            val canvasHeight = size.height
 
             drawLine(
-                color = axisColor.copy(alpha = 0.3f),
-                start = Offset(padding, yPos),
-                end = Offset(size.width, yPos),
-                strokeWidth = 1f
+                color = Color.Black,
+                start = Offset(padding, canvasHeight - padding),
+                end = Offset(canvasWidth - padding, canvasHeight - padding),
+                strokeWidth = 4f
             )
+
+            val availableWidth = canvasWidth - 2 * padding
+            val barWidth = (availableWidth / list.size) * 0.7f
+            val spaceBetweenBars = (availableWidth / list.size) * 0.3f
+
+            val maxValue = list.ifEmpty { mapOf("Default" to 1) }
+                .maxOf { it.value }.toFloat()
+
+            val availableHeight = canvasHeight - 2 * padding
+            val scaleFactor = availableHeight / maxValue
+
+
+            list.entries.forEachIndexed { index, pair ->
+                val barHeight = pair.value * scaleFactor
+                val x = padding + index * (barWidth + spaceBetweenBars)
+                val y = canvasHeight - padding - barHeight
+
+                val normalized = (pair.value / maxValue).coerceIn(0f, 1f)
+                val dynamicColor = Color(
+                    red = normalized,
+                    green = 0.2f,
+                    blue = 1f - normalized / 2,
+                    alpha = 1f
+                )
+
+                drawRect(
+                    color = dynamicColor,
+                    size = Size(
+                        barWidth, barHeight
+                    ),
+                    topLeft = Offset(
+                        x = x,
+                        y = y - 4
+                    )
+                )
+                drawContext.canvas.nativeCanvas.drawText(
+                    pair.value.toString(),
+                    x + barWidth / 2,
+                    y - 15f,
+                    Paint().apply {
+                        color = android.graphics.Color.BLACK
+                        textSize = 20f
+                        textAlign = Paint.Align.CENTER
+                    }
+                )
+
+
+                drawContext.canvas.nativeCanvas.drawText(
+                    pair.key,
+                    x + barWidth / 2,
+                    canvasHeight - padding + 35f,
+                    Paint().apply {
+                        color = android.graphics.Color.BLACK
+                        textSize = 18f
+                        textAlign = Paint.Align.CENTER
+                    }
+                )
+            }
         }
-
-        data.forEachIndexed { index, item ->
-            val barHeight = (item.age.toFloat() / maxValue) * canvasHeight
-            val xPos = padding + index * (barWidth + barSpacing) + barSpacing / 2
-            val yPos = size.height - padding - barHeight
-
-            drawRect(
-                color = barColor,
-                topLeft = Offset(xPos, yPos),
-                size = Size(barWidth, barHeight),
-            )
-
-            drawText(
-                textMeasurer = textMeasurer,
-                text = item.age.toString(),
-                style = TextStyle(color = Color.White, fontSize = 12.sp),
-                topLeft = Offset(xPos + barWidth / 2 - 20f, yPos - 0f)
-            )
-
-            drawText(
-                textMeasurer = textMeasurer,
-                text = item.name,
-                style = TextStyle(color = textColor, fontSize = 12.sp),
-                topLeft = Offset(xPos + barWidth / 2 - 20f, size.height - padding + 5f)
-            )
-        }
-
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuccessScreen(
     modifier: Modifier,
+    dbState: DBState,
     currentExpense: EntityUi,
+    numberOfExpensesPerCategory: Map<String, Int>,
     sum: Int,
     currentCategory: String,
     list: List<EntityUi>,
@@ -240,6 +266,7 @@ fun SuccessScreen(
     rangeSet: (Pair<Long, Long>),
     resetCurrentExpense: () -> Unit = {},
     onSearch: (String) -> Unit = {},
+    onCharButtonClick: () -> Unit = {},
     onUpdateClick: (expense: ExpenseEntity) -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -249,6 +276,7 @@ fun SuccessScreen(
     val dateRangePickerState = rememberDateRangePickerState()
     val snackBar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showBarChar by rememberSaveable { mutableStateOf(false) }
 
 
     Box(
@@ -256,6 +284,29 @@ fun SuccessScreen(
             .fillMaxSize()
             .background(Color(0xFFE5DFDF))
     ) {
+
+        if (showBarChar) {
+            Dialog(onDismissRequest = { showBarChar = !showBarChar }) {
+                MyBarChart(list = numberOfExpensesPerCategory)
+            }
+        }
+
+        if (addScreen) {
+            Dialog(onDismissRequest = { addScreen = !addScreen }) {
+                ExpenseAddScreen(
+                    expense = currentExpense,
+                    dbState = dbState,
+                    categories = listCategories,
+                    onAddClick = { expenseEntity ->
+                        onAddClick(expenseEntity)
+                        addScreen = !addScreen
+                    }) {
+                    onUpdateClick(it)
+                    addScreen = !addScreen
+                }
+            }
+        }
+
         Column(
             Modifier
                 .padding(10.dp),
@@ -263,13 +314,21 @@ fun SuccessScreen(
             verticalArrangement = Arrangement.Center
         ) {
 
-            Text(
-                "Expense Tracker",
-                Modifier.padding(4.dp),
-                fontSize = MaterialTheme.typography.headlineLarge.fontSize,
-                fontWeight = FontWeight.W500,
-                color = Color.Black
-            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    "Expense Tracker",
+                    Modifier.padding(4.dp),
+                    fontSize = MaterialTheme.typography.headlineLarge.fontSize,
+                    fontWeight = FontWeight.W500,
+                    color = Color.Black
+                )
+                IconButton(onClick = {
+                    onCharButtonClick()
+                    showBarChar = !showBarChar
+                }) {
+                    Icon(Icons.Filled.List, "")
+                }
+            }
 
             LazyRow(
                 Modifier
@@ -442,39 +501,51 @@ fun SuccessScreen(
                     contentPadding = PaddingValues(vertical = 6.dp, horizontal = 10.dp)
 
                 ) {
-                    items(list, key = { expense -> expense.id }) { expense ->
-                        SwipeToDelete(
-                            onDelete = {
-                                onDeletePress(expense.toExpenseEntity())
-                                scope.launch {
-                                    snackBar.showSnackbar("Expense Deleted")
+                    when (dbState) {
+                        is DBState.Failure -> {
+                            item {
+                                Text(
+                                    dbState.error,
+                                    Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        DBState.Loading -> {
+                            item {
+                                Box(
+                                    Modifier.fillParentMaxSize().background(Color.Transparent),
+                                    contentAlignment = Alignment.Center
+                                ) { CircularProgressIndicator() }
+                            }
+                        }
+
+                        is DBState.Success -> {
+                            items(list, key = { expense -> expense.id }) { expense ->
+                                SwipeToDelete(
+                                    onDelete = {
+                                        onDeletePress(expense.toExpenseEntity())
+                                        scope.launch {
+                                            snackBar.showSnackbar("Expense Deleted")
+                                        }
+                                    }, scope = scope
+                                ) {
+                                    ExpenseCard(dbState = dbState, expense = expense, onLong = {
+                                        onDeletePress(it.toExpenseEntity())
+                                    }, onClickEdit = {
+                                        onEditClick(it)
+                                        addScreen = !addScreen
+                                    })
                                 }
-                            }, scope = scope
-                        ) {
-                            ExpenseCard(expense, onLong = {
-                                onDeletePress(it.toExpenseEntity())
-                            }, onClickEdit = {
-                                onEditClick(it)
-                                addScreen = !addScreen
-                            })
+                            }
+
                         }
                     }
                 }
             }
         }
 
-
-        if (addScreen) {
-            Dialog(onDismissRequest = { addScreen = !addScreen }) {
-                ExpenseAddScreen(expense = currentExpense, onAddClick = { expenseEntity ->
-                    onAddClick(expenseEntity)
-                    addScreen = !addScreen
-                }) {
-                    onUpdateClick(it)
-                    addScreen = !addScreen
-                }
-            }
-        }
         FloatingActionButton(
             onClick = {
                 resetCurrentExpense()
@@ -544,6 +615,7 @@ fun ConfirmDelete(
 ) {
     Column(
         Modifier
+            .clip(RoundedCornerShape(14.dp))
             .padding(10.dp)
             .fillMaxSize()
             .background(CustomBlue)
@@ -565,7 +637,15 @@ fun ConfirmDelete(
 
 @Composable
 fun ExpenseAddScreen(
+    dbState: DBState = DBState.Loading,
     expense: EntityUi = EntityUi(),
+    categories: List<String> = listOf(
+        "Food",
+        "Transport",
+        "Shopping",
+        "Entertainment",
+        "Other"
+    ),
     onAddClick: (ExpenseEntity) -> Unit, onUpdateClick: (expense: ExpenseEntity) -> Unit
 ) {
     val context = LocalContext.current
@@ -573,6 +653,8 @@ fun ExpenseAddScreen(
     var amount by rememberSaveable { mutableStateOf("${expense.amount}") }
     var category by rememberSaveable { mutableStateOf(expense.category) }
     var description by rememberSaveable { mutableStateOf(expense.description) }
+    var expandDropDown by rememberSaveable { mutableStateOf(false) }
+
 
     Box(
         Modifier
@@ -587,104 +669,147 @@ fun ExpenseAddScreen(
             verticalArrangement = Arrangement.Center
         ) {
 
-            Text(
-                text = if (expense.id == 0) "Add Expense" else "Update Expense",
-                fontSize = MaterialTheme.typography.titleLarge.fontSize,
-                fontWeight = FontWeight.W500
-            )
-            Column(Modifier.padding(vertical = 10.dp)) {
-                TextField(
-                    value = if (amount == 0.toString()) "" else amount,
-                    onValueChange = {
-                        amount = if (it.toDoubleOrNull() != null || it.isEmpty()) it else amount
-                    },
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .fillMaxWidth(),
-                    placeholder = { Text("enter amount") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black
-                    )
-                )
-
-                TextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .fillMaxWidth(),
-                    placeholder = { Text("enter category") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black
-                    )
-                )
-
-                TextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .fillMaxWidth(),
-                    placeholder = { Text("enter description") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black
-                    )
-                )
-            }
-            Button(
-                onClick = {
-                    if (
-                        expense.id != 0 && amount.isNotEmpty() && amount.toInt() > 0 && category.isNotEmpty() && description.isNotEmpty()
-                    ) onUpdateClick(
-                        ExpenseEntity(
-                            uid = expense.id,
-                            amount = amount.toInt(),
-                            category = category.lowercase(Locale.ROOT).trim(),
-                            description = description,
-                            date = System.currentTimeMillis()
-                        )
-                    )
-                    else if (
-                        expense.id == 0 && amount.isNotEmpty() && amount.toInt() > 0 && category.isNotEmpty() && description.isNotEmpty())
-                        onAddClick(
-                            ExpenseEntity(
-                                uid = 0,
-                                amount = amount.toInt(),
-                                category = category.lowercase(Locale.ROOT).trim(),
-                                description = description,
-                                date = System.currentTimeMillis()
-                            )
-                        )
-                    else Toast.makeText(context, "Recheck Fields", Toast.LENGTH_SHORT)
-                        .show()
+            when (dbState) {
+                is DBState.Failure -> {
+                    if (dbState.error.isNotEmpty()) {
+                        Toast.makeText(context, dbState.error, Toast.LENGTH_SHORT).show()
+                    }
                 }
-            ) {
-                Text(
-                    if (expense.id == 0)
-                        "Save"
-                    else "Update"
-                )
+
+                DBState.Loading -> {
+                    CircularProgressIndicator()
+                }
+
+                is DBState.Success -> {
+
+
+                    Text(
+                        text = if (expense.id == 0) "Add Expense" else "Update Expense",
+                        fontSize = MaterialTheme.typography.titleLarge.fontSize,
+                        fontWeight = FontWeight.W500
+                    )
+                    TextField(
+                        value = if (amount == 0.toString()) "" else amount,
+                        onValueChange = {
+                            amount = if (it.toDoubleOrNull() != null || it.isEmpty()) it else amount
+                        },
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .fillMaxWidth(),
+                        placeholder = { Text("enter amount") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black
+                        )
+                    )
+
+
+                    TextField(
+                        value = category,
+                        onValueChange = { category = it },
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .fillMaxWidth(),
+                        placeholder = { Text("enter category") },
+                        trailingIcon = {
+                            IconButton({
+                                expandDropDown = !expandDropDown
+                            }) { Icon(Icons.Filled.MoreVert, "") }
+
+                            DropdownMenu(expanded = expandDropDown, onDismissRequest = {
+                                expandDropDown = !expandDropDown
+                            }) {
+                                LazyColumn(
+                                    Modifier
+                                        .width(160.dp)
+                                        .height(200.dp)
+                                ) {
+                                    items(categories) {
+                                        DropdownMenuItem(
+                                            text = { Text(it) },
+                                            onClick = {
+                                                category = it
+                                                expandDropDown = !expandDropDown
+                                            })
+                                    }
+                                }
+                            }
+
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black
+                        )
+                    )
+
+
+
+                    TextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .fillMaxWidth(),
+                        placeholder = { Text("enter description") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black
+                        )
+                    )
+
+                    Button(
+                        onClick = {
+                            if (
+                                expense.id != 0 && amount.isNotEmpty() && amount.toInt() > 0 && category.isNotEmpty() && description.isNotEmpty()
+                            ) onUpdateClick(
+                                ExpenseEntity(
+                                    uid = expense.id,
+                                    amount = amount.toInt(),
+                                    category = category.lowercase(Locale.ROOT).trim(),
+                                    description = description,
+                                    date = System.currentTimeMillis()
+                                )
+                            )
+                            else if (
+                                expense.id == 0 && amount.isNotEmpty() && amount.toInt() > 0 && category.isNotEmpty() && description.isNotEmpty())
+                                onAddClick(
+                                    ExpenseEntity(
+                                        uid = 0,
+                                        amount = amount.toInt(),
+                                        category = category.lowercase(Locale.ROOT).trim(),
+                                        description = description,
+                                        date = System.currentTimeMillis()
+                                    )
+                                )
+                            else Toast.makeText(context, "Recheck Fields", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    ) {
+                        Text(
+                            if (expense.id == 0)
+                                "Save"
+                            else "Update"
+                        )
+                    }
+                }
             }
         }
     }
@@ -692,6 +817,7 @@ fun ExpenseAddScreen(
 
 @Composable
 fun ExpenseCard(
+    dbState: DBState,
     expense: EntityUi,
     onLong: (expense: EntityUi) -> Unit,
     onClickEdit: (expense: EntityUi) -> Unit = {}
@@ -706,38 +832,58 @@ fun ExpenseCard(
             shape = RoundedCornerShape(10.dp),
             colors = CardDefaults.elevatedCardColors(Color(0xFFFFFFFF))
         ) {
-            Column(Modifier.padding(14.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            when (dbState) {
+                is DBState.Failure -> TODO()
+                DBState.Loading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
 
-                    Text(
-                        expense.category,
-                        fontSize = MaterialTheme.typography.titleLarge.fontSize,
-                        color = Color.Black,
-                        fontWeight = FontWeight.W500
-                    )
-                    Text(
-                        "Rs. " + expense.amount.toString(),
-                        fontSize = MaterialTheme.typography.titleMedium.fontSize,
-                        color = Color.Black,
-                        fontWeight = FontWeight.W500
-                    )
                 }
-                Text(
-                    text = expense.description,
-                    fontSize = MaterialTheme.typography.titleSmall.fontSize,
-                    color = Color.Gray,
-                    fontWeight = FontWeight.W500
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(
-                        expense.date.toDateTimeString(),
-                        fontSize = 11.sp,
-                        color = Color(0xFF9F3E3E)
-                    )
-                    Icon(Icons.Filled.Delete, "Delete", Modifier.clickable {
-                        onLong(expense)
-                    }, tint = Color.Red)
+
+                is DBState.Success -> {
+                    Column(Modifier.padding(14.dp)) {
+
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+
+                            Text(
+                                expense.category,
+                                fontSize = MaterialTheme.typography.titleLarge.fontSize,
+                                color = Color.Black,
+                                fontWeight = FontWeight.W500
+                            )
+                            Text(
+                                "Rs. " + expense.amount.toString(),
+                                fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                                color = Color.Black,
+                                fontWeight = FontWeight.W500
+                            )
+                        }
+                        Text(
+                            text = expense.description,
+                            fontSize = MaterialTheme.typography.titleSmall.fontSize,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.W500
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                expense.date.toDateTimeString(),
+                                fontSize = 11.sp,
+                                color = Color(0xFF9F3E3E)
+                            )
+                            Icon(Icons.Filled.Delete, "Delete", Modifier.clickable {
+                                onLong(expense)
+                            }, tint = Color.Red)
+                        }
+                    }
                 }
+
             }
         }
     }
