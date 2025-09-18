@@ -1,10 +1,10 @@
 package com.example.expensetracker.data.repository
 
-import android.util.Log
 import com.example.expensetracker.data.local.ExpenseDao
 import com.example.expensetracker.data.local.ExpenseEntity
 import com.example.expensetracker.data.remote.MockApi
 import com.example.expensetracker.data.remote.remotedto.ExpensesResponsesItem
+import com.example.expensetracker.utils.states.DBState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -14,66 +14,65 @@ class ExpenseRepository @Inject constructor(
     private val expenseDao: ExpenseDao,
     private val mockApi: MockApi
 ) {
-    suspend fun insertExpense(expenseEntity: ExpenseEntity) {
-        val dbExpenseId = expenseDao.insertExpense(expenseEntity)
+    suspend fun insertExpense(expenseEntity: ExpenseEntity): DBState = withContext(Dispatchers.IO) {
         try {
+            val dbExpenseId = expenseDao.insertExpense(expenseEntity)
             val remoteResponse = mockApi.postExpense(expenseEntity.toDto())
             remoteResponse.id?.let { remoteId ->
                 expenseDao.updateRemoteId(
                     dbExpenseId.toInt(),
                     remoteId
                 )
-                Log.d("ErrorInDeletingExpense", "Remote saved with id=$remoteId $dbExpenseId")
-            }
+                DBState.Success("Added")
+            } ?: DBState.Failure("No Remote Id")
         } catch (e: Exception) {
-            Log.d("ErrorInDeletingExpense", e.message.toString())
-
+            DBState.Failure(e.message.toString())
         }
     }
 
 
-    suspend fun getAllExpensesFromRemote() {
+    suspend fun getAllExpensesFromRemote(): DBState = withContext(Dispatchers.IO) {
         try {
             val remoteExpenses = mockApi.getExpenses()
             val entities = remoteExpenses.map { it.toExpenseEntity() }
-            expenseDao.clearAll()
+            expenseDao.clearAll() //checking purpose onlyyy
             expenseDao.insertAll(entities)
+            DBState.Success("Synced")
         } catch (e: Exception) {
-            Log.e("ExpenseRepo", "Sync failed: ${e.message}")
+            DBState.Failure(e.message.toString())
         }
+
     }
 
 
-    suspend fun deleteExpense(expenseEntity: ExpenseEntity) {
+    suspend fun deleteExpense(expenseEntity: ExpenseEntity): DBState = withContext(Dispatchers.IO) {
         expenseDao.deleteExpense(expenseEntity)
-        Log.d("ErrorInDeletingExpense", "(DELETE) remoteId = ${expenseEntity.remoteId}")
-        Log.d("ErrorInDeletingExpense", "(DELETE) remoteId = $expenseEntity")
-
-        expenseEntity.remoteId?.let {
-            try {
+        try {
+            expenseEntity.remoteId?.let {
                 mockApi.deleteExpense(it)
-                Log.d("ErrorInDeletingExpense", "(DELETE) Deleted from remote")
-            } catch (e: Exception) {
-                Log.d("ErrorInDeletingExpense", e.message.toString())
-            }
+                DBState.Success("Expense Deleted")
+            } ?: DBState.Failure("No Remote Id")
+        } catch (e: Exception) {
+            DBState.Failure(e.message.toString())
+
         }
     }
 
-    suspend fun updateExpense(expenseEntity: ExpenseEntity) =
-        expenseEntity.remoteId?.let {
-            try {
+    suspend fun updateExpense(expenseEntity: ExpenseEntity): DBState = withContext(Dispatchers.IO) {
+        try {
+            expenseEntity.remoteId?.let {
                 expenseDao.updateExpense(expenseEntity)
                 mockApi.updateExpense(
                     expenseEntity.remoteId,
                     expenseEntity.toDto()
                 )
-            } catch (e: Exception) {
-                Log.d("ErrorInDeletingExpense", "$e")
+                DBState.Success("Updated")
+            } ?: DBState.Failure("No Remote Id")
 
-
-            }
-
+        } catch (e: Exception) {
+            DBState.Failure(e.message.toString())
         }
+    }
 
     fun getTotalAmount(): Flow<Int?> = expenseDao.getTotalAmount()
 
@@ -105,4 +104,17 @@ fun ExpenseEntity.toDto(): ExpensesResponsesItem = ExpensesResponsesItem(
     date = date,
     description = description,
 )
+//
+//fun List<ExpenseEntity>.toListOfResponses(): List<ExpensesResponsesItem> {
+//    return this.forEach { expenseEntity ->
+//        ExpensesResponsesItem(
+//            amount = expenseEntity.amount,
+//            category = expenseEntity.category,
+//            date = expenseEntity.date,
+//            description = expenseEntity.description,
+//            id = expenseEntity.remoteId,
+//
+//        )
+//    }
+//}
 

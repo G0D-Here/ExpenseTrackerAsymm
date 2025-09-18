@@ -57,6 +57,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -104,6 +107,7 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
     val currentCategory by viewModel.currentCategory.collectAsState()
     val filteredExpenses = viewModel.uiState.collectAsState().value
     val categories by viewModel.categories.collectAsState(emptyList())
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     when (filteredExpenses) {
         is DataState.Failure -> {
@@ -141,6 +145,7 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
                 onSyncClick = { viewModel.syncExpenses() },
                 onSearch = { viewModel.onSearchQueryChanged(it) },
                 onCharButtonClick = { viewModel.numberOfExpensesPerCategory() },
+                isRefreshing = isRefreshing,
                 onUpdateClick = {
                     viewModel.updateExpense(it)
                 }
@@ -255,6 +260,7 @@ fun SuccessScreen(
     onCategoryChange: (String, Long, Long) -> Unit,
     onEditClick: (expense: EntityUi) -> Unit,
     rangeSet: (Pair<Long, Long>),
+    isRefreshing: Boolean,
     resetCurrentExpense: () -> Unit = {},
     onSyncClick: () -> Unit = {},
     onSearch: (String) -> Unit = {},
@@ -431,6 +437,7 @@ fun SuccessScreen(
                     fontWeight = FontWeight.W500
                 )
 
+
             if (ranges) {
                 DatePickerDialog(
                     onDismissRequest = {
@@ -482,64 +489,72 @@ fun SuccessScreen(
                     Modifier.align(Alignment.CenterHorizontally),
                     color = Color.Black
                 )
-                Button(onClick = {
-
-                    onSyncClick()
-                }) {
-                    Text("Sync")
-                }
-
-            } else {
-                LazyColumn(
-                    Modifier
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .fillMaxWidth()
-                        .background(Color.White),
-                    contentPadding = PaddingValues(vertical = 6.dp, horizontal = 10.dp)
-
+                } else {
+                val state = rememberPullToRefreshState()
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing, onRefresh = onSyncClick, state = state,
+                    indicator = {
+                        Indicator(
+                            modifier = Modifier.align(Alignment.TopCenter),
+                            isRefreshing = true,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            state = state
+                        )
+                    },
                 ) {
-                    when (dbState) {
-                        is DBState.Failure -> {
-                            item {
-                                Text(
-                                    dbState.error,
-                                    Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
 
-                        DBState.Loading -> {
-                            item {
-                                Box(
-                                    Modifier
-                                        .fillParentMaxSize()
-                                        .background(Color.Transparent),
-                                    contentAlignment = Alignment.Center
-                                ) { CircularProgressIndicator() }
-                            }
-                        }
+                    LazyColumn(
+                        Modifier
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .fillMaxWidth()
+                            .background(Color.White),
+                        contentPadding = PaddingValues(vertical = 6.dp, horizontal = 10.dp)
 
-                        is DBState.Success -> {
-                            items(list, key = { expense -> expense.id }) { expense ->
-                                SwipeToDelete(
-                                    onDelete = {
-                                        onDeletePress(expense.toExpenseEntity())
-                                        scope.launch {
-                                            snackBar.showSnackbar("Expense Deleted")
-                                        }
-                                    }, scope = scope
-                                ) {
-                                    ExpenseCard(dbState = dbState, expense = expense, onLong = {
-                                        onDeletePress(it.toExpenseEntity())
-                                    }, onClickEdit = {
-                                        onEditClick(it)
-                                        addScreen = !addScreen
-                                    })
+                    ) {
+                        when (dbState) {
+                            is DBState.Failure -> {
+                                item {
+                                    Text(
+                                        dbState.error,
+                                        Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                             }
 
+                            DBState.Loading -> {
+                                item {
+                                    Box(
+                                        Modifier
+                                            .fillParentMaxSize()
+                                            .background(Color.Transparent),
+                                        contentAlignment = Alignment.Center
+                                    ) { CircularProgressIndicator() }
+                                }
+                            }
+
+                            is DBState.Success -> {
+                                items(list, key = { expense -> expense.id }) { expense ->
+                                    SwipeToDelete(
+                                        onDelete = {
+                                            onDeletePress(expense.toExpenseEntity())
+                                            scope.launch {
+                                                snackBar.showSnackbar("Expense Deleted")
+                                            }
+                                        }, scope = scope
+                                    ) {
+                                        ExpenseCard(dbState = dbState, expense = expense, onLong = {
+                                            onDeletePress(it.toExpenseEntity())
+                                        }, onClickEdit = {
+                                            onEditClick(it)
+                                            addScreen = !addScreen
+                                        })
+                                    }
+                                }
+
+                            }
                         }
                     }
                 }

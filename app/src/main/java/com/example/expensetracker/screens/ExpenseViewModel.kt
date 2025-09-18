@@ -2,7 +2,6 @@
 
 package com.example.expensetracker.screens
 
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -36,13 +35,16 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     ViewModel() {
 
     fun syncExpenses() {
-        _dataBaseOperationsState.value = DBState.Loading
         viewModelScope.launch {
-            repository.getAllExpensesFromRemote()
-            delay(500)
-            _dataBaseOperationsState.value = DBState.Success("Synced")
+            _dataBaseOperationsState.value = DBState.Loading
+            _isRefreshing.value = true
+            _dataBaseOperationsState.value = repository.getAllExpensesFromRemote()
+            _isRefreshing.value = false
         }
     }
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
 
     //Only use Browser not X(AI)
@@ -99,6 +101,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
         MutableStateFlow(DBState.Success(""))
     val dataBaseOperationsState: StateFlow<DBState> = _dataBaseOperationsState.asStateFlow()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<DataState> = refreshState
         .combine(currentCategory) { _, category -> category }
         .combine(ranges) { category, range -> category to range }
@@ -117,8 +120,6 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
                         it.description.contains(query)
                     }
                 }
-                delay(1000)
-                Log.d("ErrorInDeletingExpense", "(SCREEN)$list")
 
                 DataState.Success(filteredList.map { it.toUiEntity() }) as DataState
             }
@@ -137,11 +138,9 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
                 _numberOfExpensesPerCategory.value =
                     it.groupBy { it.category }
                         .mapValues { (_, list) ->
-                            delay(3000)
                             list.size
                         }
             }
-
         }
     }
 
@@ -168,13 +167,11 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     }
 
     fun addExpense(expenseEntity: ExpenseEntity) {
-        _dataBaseOperationsState.value = DBState.Loading
         viewModelScope.launch {
+            _dataBaseOperationsState.value = DBState.Loading
             try {
-                repository.insertExpense(expenseEntity)
+                _dataBaseOperationsState.value = repository.insertExpense(expenseEntity)
                 currentExpense.value = EntityUi()
-                delay(1000)
-                _dataBaseOperationsState.value = DBState.Success("Added")
             } catch (e: Exception) {
                 _dataBaseOperationsState.value =
                     DBState.Failure(e.message ?: "SomeThing Went Wrong")
@@ -183,14 +180,10 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     }
 
     fun deleteExpense(expenseEntity: ExpenseEntity) {
-        Log.d("ErrorInDeletingExpense", "(SCREEN DELETE)$expenseEntity")
-
         viewModelScope.launch {
             _dataBaseOperationsState.value = DBState.Loading
             try {
-                repository.deleteExpense(expenseEntity)
-                delay(1000)
-                _dataBaseOperationsState.value = DBState.Success("Deleted")
+                _dataBaseOperationsState.value = repository.deleteExpense(expenseEntity)
             } catch (e: Exception) {
                 _dataBaseOperationsState.value =
                     DBState.Failure(e.message ?: "SomeThing Went Wrong")
@@ -202,13 +195,10 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
         _dataBaseOperationsState.value = DBState.Loading
         viewModelScope.launch {
             try {
-                repository.updateExpense(expense)
+                _dataBaseOperationsState.value = repository.updateExpense(expense)
                 currentExpense.value = EntityUi()
-                delay(1000)
-                _dataBaseOperationsState.value = DBState.Success("Updated")
-            } catch (
-                e: Exception
-            ) {
+
+            } catch (e: Exception) {
                 _dataBaseOperationsState.value =
                     DBState.Failure(e.message ?: "SomeThing Went Wrong")
             }

@@ -16,6 +16,9 @@ interface MockApi {
     @POST("expenses")
     suspend fun postExpense(@Body expense: ExpensesResponsesItem): ExpensesResponsesItem
 
+    @POST
+    suspend fun uploadAllExpenses(@Body expenses: List<ExpensesResponsesItem>): ExpensesResponses
+
     @DELETE("expenses/{id}")
     suspend fun deleteExpense(@Path("id") id: String)
 

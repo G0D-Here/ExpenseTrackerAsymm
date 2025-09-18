@@ -25,6 +25,9 @@ interface ExpenseDao {
     @Query("DELETE FROM expenses")
     suspend fun clearAll()
 
+    @Query("SELECT * FROM expenses WHERE remoteId IS NULL")
+    suspend fun getUnSyncedExpenses(): List<ExpenseEntity>
+
     @Query("UPDATE expenses SET remoteId = :remoteId WHERE uid = :uid")
     suspend fun updateRemoteId(uid: Int, remoteId: String)
 
