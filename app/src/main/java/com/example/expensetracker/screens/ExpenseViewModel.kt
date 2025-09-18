@@ -1,17 +1,20 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+//@file:OptIn(ExperimentalCoroutinesApi::class)
 
 package com.example.expensetracker.screens
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.expensetracker.data.local.ExpenseEntity
 import com.example.expensetracker.data.repository.ExpenseRepository
+import com.example.expensetracker.utils.states.DBState
 import com.example.expensetracker.utils.states.DataState
 import com.example.expensetracker.utils.states.EntityUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,15 +30,20 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed class DBState {
-    data class Failure(val error: String) : DBState()
-    data class Success(val data: String) : DBState()
-    data object Loading : DBState()
-}
 
 @HiltViewModel
 class ExpenseViewModel @Inject constructor(private val repository: ExpenseRepository) :
     ViewModel() {
+
+    fun syncExpenses() {
+        _dataBaseOperationsState.value = DBState.Loading
+        viewModelScope.launch {
+            repository.getAllExpensesFromRemote()
+            delay(500)
+            _dataBaseOperationsState.value = DBState.Success("Synced")
+        }
+    }
+
 
     //Only use Browser not X(AI)
 
@@ -53,6 +61,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     val currentCategory: StateFlow<String> = _currentCategory.asStateFlow()
 
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val _totalSum: Flow<Int?> = currentCategory.flatMapLatest {
         if (it == "All") {
             repository.getTotalAmount()
@@ -64,7 +73,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     val totalSum: Flow<Int?> = _totalSum
 
     private val _categories: StateFlow<List<String>> =
-        repository.getAllCategories().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        repository.getAllCategories().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val categories: StateFlow<List<String>> = _categories
 
@@ -105,15 +114,20 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
                     list
                 } else {
                     list.filter {
-                        it.description.contains(query, ignoreCase = false)
+                        it.description.contains(query)
                     }
                 }
-                DataState.Success(filteredList.map { it.toUiEntity() })
+                delay(1000)
+                Log.d("ErrorInDeletingExpense", "(SCREEN)$list")
+
+                DataState.Success(filteredList.map { it.toUiEntity() }) as DataState
             }
+        }.onStart {
+            emit(DataState.Loading)
+            delay(1000)
         }
-        .onStart { DataState.Loading }
         .flowOn(Dispatchers.IO)
-        .catch { DataState.Failure(it.message.orEmpty()) }
+        .catch { emit(DataState.Failure(it.message.orEmpty())) }
         .stateIn(viewModelScope, SharingStarted.Lazily, DataState.Loading)
 
 
@@ -122,7 +136,10 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
             repository.getAllExpenses().collect { it ->
                 _numberOfExpensesPerCategory.value =
                     it.groupBy { it.category }
-                        .mapValues { (_, list) -> list.size }
+                        .mapValues { (_, list) ->
+                            delay(3000)
+                            list.size
+                        }
             }
 
         }
@@ -156,6 +173,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
             try {
                 repository.insertExpense(expenseEntity)
                 currentExpense.value = EntityUi()
+                delay(1000)
                 _dataBaseOperationsState.value = DBState.Success("Added")
             } catch (e: Exception) {
                 _dataBaseOperationsState.value =
@@ -165,10 +183,13 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     }
 
     fun deleteExpense(expenseEntity: ExpenseEntity) {
+        Log.d("ErrorInDeletingExpense", "(SCREEN DELETE)$expenseEntity")
+
         viewModelScope.launch {
             _dataBaseOperationsState.value = DBState.Loading
             try {
                 repository.deleteExpense(expenseEntity)
+                delay(1000)
                 _dataBaseOperationsState.value = DBState.Success("Deleted")
             } catch (e: Exception) {
                 _dataBaseOperationsState.value =
@@ -183,6 +204,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
             try {
                 repository.updateExpense(expense)
                 currentExpense.value = EntityUi()
+                delay(1000)
                 _dataBaseOperationsState.value = DBState.Success("Updated")
             } catch (
                 e: Exception

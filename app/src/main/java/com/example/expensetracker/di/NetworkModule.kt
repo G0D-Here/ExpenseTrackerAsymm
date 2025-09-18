@@ -5,11 +5,14 @@ import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.expensetracker.data.local.ExpenseDatabase
+import com.example.expensetracker.data.remote.MockApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
 
 @Module
@@ -42,6 +45,22 @@ object NetworkModule {
         }
     }
 
+    private val Migration_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE expenses ADD COLUMN remoteId TEXT")
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(): Retrofit =
+        Retrofit.Builder().baseUrl("https://68c58825a712aaca2b6907e2.mockapi.io/expenses/")
+            .addConverterFactory(GsonConverterFactory.create()).build()
+
+    @Provides
+    @Singleton
+    fun provideMockApi(retrofit: Retrofit): MockApi = retrofit.create(MockApi::class.java)
+
     @Provides
     @Singleton
     fun provideDataBase(@ApplicationContext context: Context): ExpenseDatabase =
@@ -49,7 +68,7 @@ object NetworkModule {
             context,
             ExpenseDatabase::class.java,
             "expense_database"
-        ).addMigrations(Migration_1_2)
+        ).addMigrations(Migration_1_2, Migration_2_3)
             .build()
 
     @Provides

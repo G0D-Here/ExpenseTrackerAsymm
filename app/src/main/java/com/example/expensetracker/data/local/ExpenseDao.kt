@@ -11,13 +11,22 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ExpenseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertExpense(expense: ExpenseEntity)
+    suspend fun insertExpense(expense: ExpenseEntity): Long
 
     @Delete
     suspend fun deleteExpense(expense: ExpenseEntity)
 
     @Update
     suspend fun updateExpense(expense: ExpenseEntity)
+
+    @Insert
+    suspend fun insertAll(expenses: List<ExpenseEntity>)
+
+    @Query("DELETE FROM expenses")
+    suspend fun clearAll()
+
+    @Query("UPDATE expenses SET remoteId = :remoteId WHERE uid = :uid")
+    suspend fun updateRemoteId(uid: Int, remoteId: String)
 
     @Query("SELECT SUM(amount) FROM expenses")
     fun getTotalAmount(): Flow<Int?>

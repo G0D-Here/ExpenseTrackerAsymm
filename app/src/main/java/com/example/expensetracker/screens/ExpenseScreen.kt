@@ -84,6 +84,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.expensetracker.data.local.ExpenseEntity
+import com.example.expensetracker.utils.states.DBState
 import com.example.expensetracker.utils.states.DataState
 import com.example.expensetracker.utils.states.EntityUi
 import kotlinx.coroutines.CoroutineScope
@@ -91,17 +92,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-//val listOfBarChartExamples = listOf(
-//    mapOf("Vivek" to 25),
-//    mapOf("Mohan" to 30),
-//    mapOf("Virat" to 45),
-//    mapOf("Rohan" to 38),
-//    mapOf("Virat" to 40),
-//    mapOf("Shyam" to 65),
-//    mapOf("Viram" to 20),
-//    mapOf("Highest" to 30)
-//)
 
 @Composable
 fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = hiltViewModel()) {
@@ -148,6 +138,7 @@ fun ExpenseScreen(modifier: Modifier = Modifier, viewModel: ExpenseViewModel = h
                 onEditClick = { viewModel.addCurrentExpense(it) },
                 rangeSet = viewModel.ranges.collectAsState().value,
                 resetCurrentExpense = { viewModel.addCurrentExpense(EntityUi()) },
+                onSyncClick = { viewModel.syncExpenses() },
                 onSearch = { viewModel.onSearchQueryChanged(it) },
                 onCharButtonClick = { viewModel.numberOfExpensesPerCategory() },
                 onUpdateClick = {
@@ -265,6 +256,7 @@ fun SuccessScreen(
     onEditClick: (expense: EntityUi) -> Unit,
     rangeSet: (Pair<Long, Long>),
     resetCurrentExpense: () -> Unit = {},
+    onSyncClick: () -> Unit = {},
     onSearch: (String) -> Unit = {},
     onCharButtonClick: () -> Unit = {},
     onUpdateClick: (expense: ExpenseEntity) -> Unit
@@ -490,6 +482,12 @@ fun SuccessScreen(
                     Modifier.align(Alignment.CenterHorizontally),
                     color = Color.Black
                 )
+                Button(onClick = {
+
+                    onSyncClick()
+                }) {
+                    Text("Sync")
+                }
 
             } else {
                 LazyColumn(
@@ -515,7 +513,9 @@ fun SuccessScreen(
                         DBState.Loading -> {
                             item {
                                 Box(
-                                    Modifier.fillParentMaxSize().background(Color.Transparent),
+                                    Modifier
+                                        .fillParentMaxSize()
+                                        .background(Color.Transparent),
                                     contentAlignment = Alignment.Center
                                 ) { CircularProgressIndicator() }
                             }
@@ -833,7 +833,12 @@ fun ExpenseCard(
             colors = CardDefaults.elevatedCardColors(Color(0xFFFFFFFF))
         ) {
             when (dbState) {
-                is DBState.Failure -> TODO()
+                is DBState.Failure -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(dbState.error)
+                    }
+                }
+
                 DBState.Loading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -900,7 +905,7 @@ val CustomBlue = Color(0xFF0075D2)
 fun ExpenseEntity.toUiEntity(): EntityUi {
     return EntityUi(
         id = uid, amount =
-        amount, description = description, category = category, date = date
+        amount, description = description, category = category, date = date, remoteId = remoteId
     )
 }
 
@@ -909,7 +914,8 @@ fun EntityUi.toExpenseEntity(): ExpenseEntity = ExpenseEntity(
     amount = amount,
     description = description,
     category = category,
-    date = date
+    date = date,
+    remoteId = remoteId
 )
 
 fun Long.toDateTimeString(pattern: String = "dd/MM/yyyy, hh:mm a"): String {
