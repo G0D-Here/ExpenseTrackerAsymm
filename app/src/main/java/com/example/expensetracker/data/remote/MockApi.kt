@@ -19,6 +19,7 @@ interface MockApi {
     @DELETE("expenses/{id}")
     suspend fun deleteExpense(@Path("id") id: String)
 
+
     @PUT("expenses/{id}")
     suspend fun updateExpense(
         @Path("id") id: String,
