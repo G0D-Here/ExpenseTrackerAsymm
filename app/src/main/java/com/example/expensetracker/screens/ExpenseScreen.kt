@@ -332,21 +332,8 @@ fun SuccessScreen(
                 Modifier
                     .fillMaxWidth(),
             ) {
-                item {
+                items(listOf("All") + listCategories) {
                     Button(
-                        onClick = {
-                            onCategoryChange("All", 0, 0)
-                            onSearch("")
-                            searchView = false
-                        },
-                        Modifier
-                            .padding(2.dp)
-                            .background(Color.Transparent),
-                        colors = ButtonDefaults.buttonColors(CustomBlue)
-                    ) { Text("All", color = Color.White) }
-                }
-                items(listCategories) {
-                    OutlinedButton(
                         onClick = {
                             onCategoryChange(it, 0, 0)
                             onSearch("")
@@ -354,15 +341,12 @@ fun SuccessScreen(
                         },
                         Modifier.padding(2.dp),
                         colors = ButtonDefaults.textButtonColors(
+                            if (currentCategory == it) CustomBlue else Color.Transparent
                         ),
-                        border = BorderStroke(
-                            1.dp, if (currentCategory == it) Color.Black else
-                                Color.Transparent
-                        )
                     ) {
                         Text(
                             it,
-                            color = Color.Black,
+                            color = if (currentCategory == it) Color.White else Color.Black,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = MaterialTheme.typography.bodyLarge.fontSize
                         )
@@ -489,7 +473,7 @@ fun SuccessScreen(
                     Modifier.align(Alignment.CenterHorizontally),
                     color = Color.Black
                 )
-                } else {
+            } else {
                 val state = rememberPullToRefreshState()
                 PullToRefreshBox(
                     isRefreshing = isRefreshing, onRefresh = onSyncClick, state = state,

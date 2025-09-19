@@ -57,7 +57,8 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(): Retrofit =
         Retrofit.Builder().baseUrl("https://68c58825a712aaca2b6907e2.mockapi.io/expenses/")
-            .addConverterFactory(GsonConverterFactory.create()).build()
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
 
     @Provides
     @Singleton
@@ -70,8 +71,7 @@ object NetworkModule {
             context,
             ExpenseDatabase::class.java,
             "expense_database"
-        ).addMigrations(Migration_1_2, Migration_2_3)
-            .build()
+        ).addMigrations(Migration_1_2, Migration_2_3).build()
 
     @Provides
     @Singleton

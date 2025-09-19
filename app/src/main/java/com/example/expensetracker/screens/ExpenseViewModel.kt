@@ -59,6 +59,10 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     //add drop down to select one category.[Done]
 
 
+    //Why used Combine and flatMapLatest also alternates
+    //add "All" always with categories list even the category is empty.
+
+
     private var _currentCategory = MutableStateFlow("All")
     val currentCategory: StateFlow<String> = _currentCategory.asStateFlow()
 
@@ -75,7 +79,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     val totalSum: Flow<Int?> = _totalSum
 
     private val _categories: StateFlow<List<String>> =
-        repository.getAllCategories().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        repository.getAllCategories().stateIn(viewModelScope, SharingStarted.Lazily, listOf("All"))
 
     val categories: StateFlow<List<String>> = _categories
 
@@ -102,8 +106,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     val dataBaseOperationsState: StateFlow<DBState> = _dataBaseOperationsState.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<DataState> = refreshState
-        .combine(currentCategory) { _, category -> category }
+    val uiState: StateFlow<DataState> = currentCategory
         .combine(ranges) { category, range -> category to range }
         .combine(_query) { (category, range), query -> Triple(category, range, query) }
         .flatMapLatest { (category, range, query) ->
@@ -117,7 +120,7 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
                     list
                 } else {
                     list.filter {
-                        it.description.contains(query)
+                        it.description.contains(query) || it.category.contains(query)
                     }
                 }
 
