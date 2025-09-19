@@ -79,16 +79,12 @@ class ExpenseViewModel @Inject constructor(private val repository: ExpenseReposi
     val totalSum: Flow<Int?> = _totalSum
 
     private val _categories: StateFlow<List<String>> =
-        repository.getAllCategories().stateIn(viewModelScope, SharingStarted.Lazily, listOf("All"))
+        repository.getAllCategories().stateIn(viewModelScope, SharingStarted.Eagerly, listOf("All"))
 
     val categories: StateFlow<List<String>> = _categories
 
     var currentExpense = mutableStateOf(EntityUi())
         private set
-
-
-    //refreshState: Pending until nextPhase
-    private val refreshState: MutableStateFlow<Unit> = MutableStateFlow(Unit)
 
     private val _numberOfExpensesPerCategory = MutableStateFlow<Map<String, Int>>(emptyMap())
 
